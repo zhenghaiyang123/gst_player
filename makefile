@@ -6,6 +6,6 @@ TARGET=MediaPlayer
 all: gst_player  
 
 gst_player:
-	 gcc -o $(TARGET) mediaPlayer.c mediaPlayer.h $(LIBS) $(CFLAGS)
+	 gcc -o $(TARGET) mediaPlayer.c $(LIBS) $(CFLAGS)
 clean:
 	rm -rf $(TARGET)
