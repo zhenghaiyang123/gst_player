@@ -1,0 +1,4 @@
+/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/build/CMakeFiles/rebuild_cache.dir
+/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/build/CMakeFiles/gst_player.dir
+/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/build/CMakeFiles/edit_cache.dir
+/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/build/CMakeFiles/gst_player_autogen.dir

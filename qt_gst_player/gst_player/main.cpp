@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <gst/gst.h>
 #include <glib.h>
 
@@ -6,22 +7,17 @@
 #include <gst/video/videooverlay.h>
 
 #include "playerwindow.h"
+#include "common.h"
 
 extern "C"
 {
 #include <mediaPlayer.h>
 }
 
-typedef struct _ST_USER_HANDLE {
-    gint handleId;
-    GstElement *pipeline;  /* Our one and only element */
-    GstElement  *videoSink;
-} ST_USER_HANDLE;
+ST_USER_HANDLE *userHandle;
 
-void sleep(unsigned int msec);
 void hanleCallBackEvent(CALL_BACK_EVENT_TYPE eventType, void *param);
-
-ST_USER_HANDLE userHandle;
+void *_palyer_control_thread(void* Parameter);
 
 int main(int argc, char *argv[])
 {
@@ -31,81 +27,208 @@ int main(int argc, char *argv[])
     WId xwinid;
     int maxWaitCount =10;
 
+    //malloc handle
+
+    userHandle = (ST_USER_HANDLE *)malloc(sizeof(ST_USER_HANDLE));
+    if (!userHandle)
+    {
+        LOG_ERROR ("malloc userHandle fail.\n");
+        ret = -1;
+    }
+    LOG_INFO("malloc MEM(%p)\n", userHandle);
+    memset(userHandle, 0, sizeof(ST_USER_HANDLE));
+
     initParam.path = "https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_cropped_multilingual.webm";
     initParam.callBackFunction = hanleCallBackEvent;
+    initParam.logLevel = LOG_LEVEL_TRACE;
     ret = MMPlayerInit(&initParam);
     if (ret != 0)
     {
-        g_printerr ("play file %s error.\n", initParam.path);
+        LOG_ERROR ("play file %s error.\n", initParam.path);
         return - 1;
     }
 
+    //wait player init OK
+    while (NULL ==  userHandle->pipeline)
+    {
+        maxWaitCount++;
+        if (maxWaitCount > 2000)
+        {
+            LOG_ERROR ("wait palyer init OK msg fail.\n", initParam.path);
+            return - 1;
+        }
+        usleep(1000);
+    }
+
+    LOG_INFO("recive palyer init OK msg\n");
+    maxWaitCount = 0;
+
     //play mm in QT window
-    PlayerWindow *window = new PlayerWindow(userHandle.pipeline);
+    PlayerWindow *window = new PlayerWindow(&userHandle);
     window->setWindowTitle("Qt&&GStreamer Player demo");
     window->resize(900, 600);
     xwinid = window->getVideoWId();
 
     //wait playsink added
-    while (NULL == userHandle.videoSink)
+    while (NULL == userHandle->videoSink)
     {
-        userHandle.videoSink = gst_bin_get_by_name (GST_BIN (userHandle.pipeline), "playsink");
+        userHandle->videoSink = gst_bin_get_by_name (GST_BIN (userHandle->pipeline), "playsink");
         maxWaitCount++;
-        if (maxWaitCount > 20)
+        if (maxWaitCount > 2000)
         {
-            g_printerr ("can not find video sink.\n", initParam.path);
+            LOG_ERROR ("can not find video sink.\n", initParam.path);
             goto stop;
         }
-        sleep(100);
+        usleep(1000);
     }
 
-    gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY(userHandle.videoSink), xwinid);
+    gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY(userHandle->videoSink), xwinid);
 
-    if (userHandle.videoSink)
+    if (userHandle->videoSink)
     {
-         gst_object_unref (userHandle.videoSink);
+         gst_object_unref (userHandle->videoSink);
     }
 
-    MMPlayerPlay(userHandle.handleId);
-    sleep(1000);
+    usleep(1);
     window->show();
 
-    //play 50s
-    sleep(20 * 1000);
+    //init cmd queue
+    g_mutex_init(&userHandle->quitMutex);
+    g_cond_init(&userHandle->quitCond);
+    g_mutex_init(&userHandle->queueMutex);
+    g_cond_init(&userHandle->queueCond);
+    cmdQueueInit(&userHandle->cmdQueue);
+
+    userHandle->controlThread = g_thread_new("control_thread", _palyer_control_thread, userHandle);
+    if (!userHandle->controlThread)
+    {
+        LOG_ERROR ("create control thread fail.\n");
+    }
 
 stop:
-    ret = MMPlayerStop(userHandle.handleId);
-    if (ret != 0)
-    {
-        g_printerr ("stop play file %s error.\n", initParam.path);
-        ret = - 1;
-    }
-    return ret;
-    //return app.exec();
-}
-
-void sleep(unsigned int msec)
-{
-    QTime dieTime = QTime::currentTime().addMSecs(msec);
-    while( QTime::currentTime() < dieTime )
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    return app.exec();
 }
 
 void hanleCallBackEvent(CALL_BACK_EVENT_TYPE eventType, void *param)
 {
-    g_print("recive event type (%d)\n", eventType);
+    LOG_INFO("recive event type (%d)\n", eventType);
     switch (eventType)
     {
         case PLAYER_INIT_OK:
         {
-            g_print("player init OK! \n");
+            LOG_INFO("player init OK! \n");
             ST_HANDLE_INFO *retHanleInfo = (ST_HANDLE_INFO *)param;
-            userHandle.handleId = retHanleInfo->handleId;
-            userHandle.pipeline = retHanleInfo->pipeline;
-        }
+            userHandle->handleId = retHanleInfo->handleId;
+            userHandle->pipeline = retHanleInfo->pipeline;
+            userHandle->handleStatus = READY_STATUS;
             break;
+        }
+        case PLAYER_STOP_OK:
+        {
+            LOG_INFO("pipeline deinit OK! \n");
+            userHandle->handleStatus = ERROR_STATUS;
+            g_mutex_lock(&userHandle->queueMutex);
+            g_cond_signal(&userHandle->queueCond);
+            g_mutex_unlock(&userHandle->queueMutex);
+            break;
+        }
 
         default:
             break;
     }
 }
+
+void *_palyer_control_thread(void* Parameter)
+{
+    ST_USER_HANDLE *pstUserHandle = (ST_USER_HANDLE *)Parameter;
+    ST_PLAYER_CMD *curCmd = NULL;
+
+    if (NULL == pstUserHandle)
+    {
+        LOG_ERROR ("handle is NULL.\n");
+    }
+
+    LOG_INFO("control thread enter\n");
+    while(pstUserHandle->handleStatus < ERROR_STATUS)
+    {
+        while (!cmdQueueIsEmpty(pstUserHandle->cmdQueue))
+        {
+            LOG_INFO("queue not empty\n");
+            g_mutex_lock(&pstUserHandle->queueMutex);
+            curCmd = cmdQueuePop(pstUserHandle->cmdQueue);
+            g_mutex_unlock(&pstUserHandle->queueMutex);
+
+            if (curCmd == NULL)
+            {
+                LOG_INFO("cmd is empty\n");
+                break;
+            }
+
+            switch (curCmd->type)
+            {
+                case CMD_PLAY:
+                {
+                    MMPlayerPlay(pstUserHandle->handleId);
+                    break;
+                }
+                case CMD_PAUSE:
+                {
+                    MMPlayerPause(pstUserHandle->handleId);
+                    break;
+                }
+                case CMD_RESUME:
+                {
+                    break;
+                }
+                case CMD_STOP:
+                {
+                    MMPlayerStop(pstUserHandle->handleId);
+                    break;
+                }
+                case CMD_SEEK:
+                {
+                    break;
+                }
+                default:
+                    break;
+            }
+
+            //need free cmd here
+            if (curCmd)
+            {
+                g_free(curCmd);
+            }
+        }
+
+        if (cmdQueueIsEmpty(pstUserHandle->cmdQueue))
+        {
+            //wait new cmd push in cmd queue
+            LOG_INFO("start wait new cmd...\n");
+            g_mutex_lock(&pstUserHandle->queueMutex);
+            g_cond_wait(&pstUserHandle->queueCond, &pstUserHandle->queueMutex);
+            g_mutex_unlock(&pstUserHandle->queueMutex);
+            LOG_INFO("wait new cmd done\n");
+        }
+    }
+
+    LOG_INFO("quit control thread\n");
+    cmdQueueDeInit(pstUserHandle->cmdQueue);
+    //control thead stop free cmd queue
+    if (pstUserHandle->cmdQueue)
+    {
+        g_free(pstUserHandle->cmdQueue);
+        pstUserHandle->cmdQueue = NULL;
+    }
+
+    g_mutex_clear(&pstUserHandle->queueMutex);
+    g_cond_clear(&pstUserHandle->queueCond);
+    g_thread_unref(pstUserHandle->controlThread);
+    pstUserHandle->controlThread = NULL;
+
+    //emit quit signal
+    g_mutex_lock(&userHandle->quitMutex);
+    g_cond_signal(&userHandle->quitCond);
+    g_mutex_unlock(&userHandle->quitMutex);
+
+}
+

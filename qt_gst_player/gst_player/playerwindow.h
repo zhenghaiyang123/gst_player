@@ -7,22 +7,34 @@
 #include <QVBoxLayout>
 #include <QSlider>
 #include <QTimer>
+#include <QCloseEvent>
 
 #include <gst/gst.h>
 #include <glib.h>
+
+#include "common.h"
+
+extern "C"
+{
+#include <mediaPlayer.h>
+}
 
 class PlayerWindow : public QWidget
 {
     Q_OBJECT
 public:
-    PlayerWindow(GstElement *pipeline);
+    PlayerWindow(ST_USER_HANDLE **pstUserHandle);
     WId getVideoWId();
 
 signals:
 
 public slots:
+    void onPlayClicked();
+    void onPauseClicked();
+    void onStopClicked();
 
 private:
+  ST_USER_HANDLE *pstHandle;
   GstElement *pipeline;
   QPushButton *playBt;
   QPushButton *pauseBt;
@@ -36,7 +48,10 @@ private:
 
   GstState state;
   gint64 totalDuration;
+  HANDLE_ID hanldeId;
 
+protected:
+    void closeEvent(QCloseEvent *event);
 };
 
 #endif // PLAYERWINDOW_H

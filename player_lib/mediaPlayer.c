@@ -4,6 +4,52 @@
 
 #include "mediaPlayer.h"
 
+#define LIB_NAME "mmplayer"
+
+static LOG_LEVEL log_level;
+
+#define LOG_ENTER()	\
+do {							\
+	if (log_level >= LOG_LEVEL_TRACE) {	\
+		g_print("[%s][IN][%s][%d]\n", LIB_NAME, __FUNCTION__, __LINE__);	\
+	}	\
+} while(0)
+
+#define LOG_OUT()	\
+do {							\
+	if (log_level >= LOG_LEVEL_TRACE) {	\
+		g_print("[%s][OUT][%s][%d]\n", LIB_NAME, __FUNCTION__, __LINE__);	\
+	}	\
+} while(0)
+
+#define LOG_DEBUG(format,...)	\
+do {							\
+	if (log_level >= LOG_LEVEL_DEBUG) {	\
+		g_print("[%s][DEBUG][%s][%d]"format"", LIB_NAME, __FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+	}	\
+} while(0)
+ 
+#define LOG_INFO(format,...)	\
+do {							\
+	if (log_level >= LOG_LEVEL_INFO) {	\
+		g_print("[%s][INFO][%s][%d]"format"", LIB_NAME, __FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+	}	\
+} while(0)
+ 
+#define LOG_WARN(format,...)	\
+do {							\
+	if (log_level >= LOG_LEVEL_WARN) {	\
+		g_print("[%s][WARN][%s][%d]"format"", LIB_NAME, __FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+	}	\
+} while(0)
+ 
+#define LOG_ERROR(format,...)	\
+do {							\
+	if (log_level >= LOG_LEVEL_ERROR) {	\
+		g_print("[%s][ERROR][%s][%d]"format"", LIB_NAME, __FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+	}	\
+} while(0)
+
 /* playbin flags */
 typedef enum {
     GST_PLAY_FLAG_VIDEO         = (1 << 0), /* We want video output */
@@ -33,18 +79,18 @@ int MMPlayerInit(ST_INIT_PARAM *pstInitParam)
 {
     int ret = 0;
 
-    g_print("player init IN. \n");
+    LOG_ENTER();
 
     if (pstInitParam->path == NULL)
     {
-        g_printerr ("file path is NULL.\n");
+        LOG_ERROR ("file path is NULL.\n");
         ret = -1;
         goto end;
     }
     
     if (pstInitParam->path == NULL)
     {
-        g_printerr ("callback funtion is NULL.\n");
+        LOG_ERROR ("callback funtion is NULL.\n");
         ret = -1;
         goto end;
     }
@@ -52,24 +98,25 @@ int MMPlayerInit(ST_INIT_PARAM *pstInitParam)
     mediaHandle = (ST_MEDIA_HANDLE *)malloc(sizeof(ST_MEDIA_HANDLE));
     if (!mediaHandle)
     {
-        g_printerr ("malloc mediaHandle fail.\n");
+        LOG_ERROR ("malloc mediaHandle fail.\n");
         ret = -1;
         goto end;
     }
 
     mediaHandle->filePath = pstInitParam->path;
     mediaHandle->hanlecallBackFn = pstInitParam->callBackFunction;
+    log_level = pstInitParam->logLevel;
 
     gst_init(NULL, NULL);
 
     mediaHandle->playThread = g_thread_new("paly_thread", _paly_thread, NULL);
     if (!mediaHandle->playThread)
     {
-        g_printerr ("create paly thread fail.\n");
+        LOG_ERROR ("create paly thread fail.\n");
         ret = -1;
     }
 
-    g_print("player init OUT. \n");
+    LOG_OUT();
 end:
     return ret;
 }
@@ -79,11 +126,11 @@ int MMPlayerPlay(HANDLE_ID hanldeId)
     GstStateChangeReturn stateRet;
     int ret = 0;
 
-    g_print("start play IN. \n");
+    LOG_ENTER();
 
     if (!mediaHandle || !mediaHandle->pipeline)
     {
-        g_printerr ("handle or pipeline is NULL.\n");
+        LOG_ERROR ("handle or pipeline is NULL.\n");
         ret = -1;
         goto end;
     }
@@ -91,12 +138,43 @@ int MMPlayerPlay(HANDLE_ID hanldeId)
     stateRet = gst_element_set_state (mediaHandle->pipeline, GST_STATE_PLAYING);
     if (stateRet == GST_STATE_CHANGE_FAILURE) 
     {
-        g_printerr ("Unable to set the pipeline to the playing state.\n");
+        LOG_ERROR ("Unable to set the pipeline to the playing state.\n");
         ret = -1;
         goto end;
     }
 
-    g_print("start play OUT. \n");
+   LOG_OUT();
+end:
+    if (ret != 0)
+    {
+        g_main_loop_quit (mediaHandle->main_loop);
+    }
+    return ret;
+}
+
+int MMPlayerPause(HANDLE_ID hanldeId)
+{
+    GstStateChangeReturn stateRet;
+    int ret = 0;
+
+    LOG_ENTER();
+
+    if (!mediaHandle || !mediaHandle->pipeline)
+    {
+        LOG_ERROR ("handle or pipeline is NULL.\n");
+        ret = -1;
+        goto end;
+    }
+
+    stateRet = gst_element_set_state (mediaHandle->pipeline, GST_STATE_PAUSED);
+    if (stateRet == GST_STATE_CHANGE_FAILURE) 
+    {
+        LOG_ERROR ("Unable to set the pipeline to the pause state.\n");
+        ret = -1;
+        goto end;
+    }
+
+   LOG_OUT();
 end:
     if (ret != 0)
     {
@@ -110,11 +188,11 @@ int MMPlayerStop(HANDLE_ID hanldeId)
     GstStateChangeReturn stateRet;
     int ret = 0;
 
-    g_print("stop play IN. \n");
+    LOG_ENTER();
 
     if (!mediaHandle || !mediaHandle->pipeline)
     {
-        g_printerr ("handle or pipeline is NULL.\n");
+        LOG_ERROR ("handle or pipeline is NULL.\n");
         ret = -1;
         goto end;
     }
@@ -122,13 +200,15 @@ int MMPlayerStop(HANDLE_ID hanldeId)
     stateRet = gst_element_set_state (mediaHandle->pipeline, GST_STATE_NULL);
     if (stateRet == GST_STATE_CHANGE_FAILURE) 
     {
-        g_printerr ("Unable to set the pipeline to the NULL state.\n");
+        LOG_ERROR ("Unable to set the pipeline to the NULL state.\n");
         ret = -1;
         goto end;
     }
 
     g_main_loop_quit (mediaHandle->main_loop);
-    g_print("stop play OK. \n");
+
+
+    LOG_OUT();
 end:
     return ret;
 }
@@ -140,7 +220,7 @@ void _paly_thread(void)
     mediaHandle->pipeline = gst_element_factory_make ("playbin3", "media_playbin");
     if (!mediaHandle->pipeline) 
     {
-        g_printerr ("Not all elements could be created.\n");
+        LOG_ERROR ("Not all elements could be created.\n");
         goto exit;
     }
 
@@ -167,7 +247,7 @@ void _paly_thread(void)
     ret = gst_element_set_state (mediaHandle->pipeline, GST_STATE_PAUSED);
     if (ret == GST_STATE_CHANGE_FAILURE)
     {
-        g_printerr ("Unable to set the pipeline to the pause state.\n");
+        LOG_ERROR ("Unable to set the pipeline to the pause state.\n");
         goto exit;
     }
 
@@ -182,7 +262,7 @@ void _paly_thread(void)
     /* Create a GLib Main Loop and set it to run */
     mediaHandle->main_loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_run (mediaHandle->main_loop);
-    g_print("main loop run stop. \n");
+    LOG_INFO("main loop run stop. \n");
 
 exit:
     if (mediaHandle->pipeline)
@@ -198,12 +278,19 @@ exit:
     {
         g_main_loop_unref (mediaHandle->main_loop);
     }
-
+    
+    mediaHandle->handleInfo.handleStatus = STOP_STATUS;
+    if (mediaHandle->hanlecallBackFn)
+    {
+       (mediaHandle->hanlecallBackFn)(PLAYER_STOP_OK ,(void *)&mediaHandle->handleInfo);
+    }
+    
     if (mediaHandle)
     {
         free(mediaHandle);
     }
-    
+
+
     return NULL;
     
 }
@@ -215,14 +302,14 @@ gboolean handle_message (GstBus *bus, GstMessage *msg, ST_MEDIA_HANDLE *mediaHan
   switch (GST_MESSAGE_TYPE (msg)) {
     case GST_MESSAGE_ERROR:
         gst_message_parse_error (msg, &err, &debug_info);
-        g_printerr ("Error received from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
-        g_printerr ("Debugging information: %s\n", debug_info ? debug_info : "none");
+        LOG_ERROR ("Error received from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
+        LOG_ERROR ("Debugging information: %s\n", debug_info ? debug_info : "none");
         g_clear_error (&err);
         g_free (debug_info);
         g_main_loop_quit (mediaHandle->main_loop);
         break;
     case GST_MESSAGE_EOS:
-        g_print ("End-Of-Stream reached.\n");
+        LOG_INFO ("End-Of-Stream reached.\n");
         g_main_loop_quit (mediaHandle->main_loop);
         break;
     case GST_MESSAGE_STATE_CHANGED: 
@@ -231,7 +318,7 @@ gboolean handle_message (GstBus *bus, GstMessage *msg, ST_MEDIA_HANDLE *mediaHan
         {
             if (new_state == GST_STATE_PLAYING) 
             {
-                g_print("starting play media. \n");
+                LOG_INFO("starting play media. \n");
             }
         }
         break;
@@ -244,13 +331,13 @@ void handle_element_added(GstBin *bin, GstElement *element, ST_MEDIA_HANDLE *med
     //Q_UNUSED(bin);
 
     gchar *elementName = gst_element_get_name(element);
-    g_print("elementName %s. \n", elementName);
+    LOG_INFO("elementName %s. \n", elementName);
 
     if (g_str_has_prefix(elementName, "video-sink")) {
-        g_print("find video-sink in element_add function. \n");
+        LOG_INFO("find video-sink in element_add function. \n");
     } 
     else if (g_str_has_prefix(elementName, "ximagesink")) {
-        g_print("find ximagesink in element_add function. \n");
+        LOG_INFO("find ximagesink in element_add function. \n");
     } 
     else if (g_str_has_prefix(elementName, "uridecodebin3") 
     || g_str_has_prefix(elementName, "decodebin2") 
