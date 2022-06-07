@@ -131,6 +131,9 @@
 		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/build/gst_player_autogen/mocs_compilation.cpp">
 			<Option target="gst_player"/>
 		</Unit>
+		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/build/qrc_res.cpp">
+			<Option target="gst_player"/>
+		</Unit>
 		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/common/common.cpp">
 			<Option target="gst_player"/>
 		</Unit>
@@ -149,7 +152,13 @@
 		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/playerwindow.h">
 			<Option target="gst_player"/>
 		</Unit>
+		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/res.qrc">
+			<Option target="gst_player"/>
+		</Unit>
 		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/res.qrc">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>
 		<Unit filename="/home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/../../../../../../Qt5.13.2/5.13.2/gcc_64/lib/cmake/Qt5/Qt5Config.cmake">

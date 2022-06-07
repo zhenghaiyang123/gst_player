@@ -27,7 +27,26 @@ int main(int argc, char *argv[])
     WId xwinid;
     int maxWaitCount =10;
 
-    //malloc handle
+    /*load qss file*/
+    QFile file(":/style.qss");
+
+    /* 判断文件是否存在 */
+    if (file.exists() ) {
+        LOG_INFO("find qss file\n");
+        /* 以只读的方式打开 */
+        file.open(QFile::ReadOnly);
+        /* 以字符串的方式保存读出的结果 */
+        QString styleSheet = QLatin1String(file.readAll());
+        /* 设置全局样式 */
+        qApp->setStyleSheet(styleSheet);
+        /* 关闭文件 */
+        file.close();
+    }
+    else
+    {
+        LOG_INFO("not find qss file\n");
+    }
+
 
     userHandle = (ST_USER_HANDLE *)malloc(sizeof(ST_USER_HANDLE));
     if (!userHandle)
@@ -38,7 +57,8 @@ int main(int argc, char *argv[])
     LOG_INFO("malloc MEM(%p)\n", userHandle);
     memset(userHandle, 0, sizeof(ST_USER_HANDLE));
 
-    initParam.path = "https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_cropped_multilingual.webm";
+    initParam.path = "file:///home/zhy/code/mypc/blog_code/gst_player/qt_gst_player/gst_player/myVideo/陈雪凝 - 绿色.mkv";
+    //initParam.path = "https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_cropped_multilingual.webm";
     initParam.callBackFunction = hanleCallBackEvent;
     initParam.logLevel = LOG_LEVEL_TRACE;
     ret = MMPlayerInit(&initParam);
@@ -47,6 +67,7 @@ int main(int argc, char *argv[])
         LOG_ERROR ("play file %s error.\n", initParam.path);
         return - 1;
     }
+    userHandle->handleStatus = INIT_STATUS;
 
     //wait player init OK
     while (NULL ==  userHandle->pipeline)
@@ -169,11 +190,13 @@ void *_palyer_control_thread(void* Parameter)
                 case CMD_PLAY:
                 {
                     MMPlayerPlay(pstUserHandle->handleId);
+                    pstUserHandle->handleStatus = PLAYING_STATUS;
                     break;
                 }
                 case CMD_PAUSE:
                 {
                     MMPlayerPause(pstUserHandle->handleId);
+                    pstUserHandle->handleStatus = PAUSE_STATUS;
                     break;
                 }
                 case CMD_RESUME:

@@ -58,7 +58,7 @@ typedef enum {
 } GstPlayFlags;
 
 typedef struct _ST_MEDIA_HANDLE {
-    gint handleId;
+    HANDLE_ID handleId;
     char *filePath;
     GThread *playThread;
     GstElement *pipeline;  /* Our one and only element */
@@ -183,6 +183,81 @@ end:
     return ret;
 }
 
+int MMPlayerDoSeek(HANDLE_ID hanldeId, gint64 seekPos)
+{
+    LOG_ENTER();
+    int ret = 0;
+
+    //find handle
+    if (hanldeId != mediaHandle->handleId)
+    {
+        LOG_ERROR ("user hanlde id (%d) do not match media handle id(%d).\n", hanldeId, mediaHandle->handleId);
+        ret = -1;
+        goto end;
+    }
+
+    ret = gst_element_seek_simple (mediaHandle->pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH ,
+                  seekPos * GST_SECOND);
+end:
+    LOG_OUT();
+    return ret;
+
+}
+
+int MMPlayerGetDuration(HANDLE_ID hanldeId, gint64 *duration)
+{
+    LOG_ENTER();
+    int ret = 0;
+
+    //find handle
+    if (hanldeId != mediaHandle->handleId)
+    {
+        LOG_ERROR ("user hanlde id (%d) do not match media handle id(%d).\n", hanldeId, mediaHandle->handleId);
+        ret = -1;
+        goto end;
+    }
+
+    if (!gst_element_query_duration (mediaHandle->pipeline, GST_FORMAT_TIME, duration))
+    {
+        LOG_ERROR ("get media duration fail.\n");
+        ret = -1;
+    }
+
+    LOG_INFO ("get media duration = %d.\n", *duration);
+    
+
+end:
+    LOG_OUT();
+    return ret;
+}
+
+int MMPlayerGetPostion(HANDLE_ID hanldeId, gint64 *postion)
+{
+    //LOG_ENTER();
+    int ret = 0;
+    
+    //find handle
+    if (hanldeId != mediaHandle->handleId)
+    {
+        LOG_ERROR ("user hanlde id (%d) do not match media handle id(%d).\n", hanldeId, mediaHandle->handleId);
+        ret = -1;
+        goto end;
+    }
+
+    if (!gst_element_query_position (mediaHandle->pipeline, GST_FORMAT_TIME, postion))
+    {
+        LOG_ERROR ("get media posion fail.\n");
+        ret = -1;
+    }
+
+     LOG_INFO ("get media postion = %d.\n", postion);
+    
+
+end:
+    //LOG_OUT();
+    return ret;
+}
+
 int MMPlayerStop(HANDLE_ID hanldeId)
 { 
     GstStateChangeReturn stateRet;
@@ -251,7 +326,7 @@ void _paly_thread(void)
         goto exit;
     }
 
-    mediaHandle->handleInfo.handleId = (int)mediaHandle;
+    mediaHandle->handleId = mediaHandle->handleInfo.handleId = (int)mediaHandle;
     mediaHandle->handleInfo.handleStatus = READY_STATUS;
     mediaHandle->handleInfo.pipeline = mediaHandle->pipeline;
     if (mediaHandle->hanlecallBackFn)

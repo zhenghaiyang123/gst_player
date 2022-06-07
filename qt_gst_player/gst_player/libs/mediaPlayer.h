@@ -37,17 +37,17 @@ typedef int HANDLE_ID;
 
 /*log level*/
 typedef enum {
-    LOG_LEVEL_OFF = -3,
-    LOG_LEVEL_ERROR = -2,
-    LOG_LEVEL_WARN = -1,
-    LOG_LEVEL_INFO = 0,
-    LOG_LEVEL_DEBUG = 1,
-    LOG_LEVEL_TRACE = 2,
-    LOG_LEVEL_ALL = 3,
+    LOG_LEVEL_OFF,
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_WARN,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_TRACE,
+    LOG_LEVEL_ALL,
 } LOG_LEVEL;
 
 typedef struct _ST_INIT_PARAM {
-    gint handleId;
+    HANDLE_ID handleId;
     char *path;
     CALL_BACK_FUNCTION callBackFunction;
     LOG_LEVEL logLevel;
@@ -60,6 +60,8 @@ int MMPlayerPlay(HANDLE_ID hanldeId);
 int MMPlayerStop(HANDLE_ID hanldeId);
 int MMPlayerPause(HANDLE_ID hanldeId);
 int MMPlayerResume(HANDLE_ID hanldeId);
-int MMPlayerGetPostion(HANDLE_ID hanldeId);
+int MMPlayerGetPostion(HANDLE_ID hanldeId, gint64 *postion);
+int MMPlayerGetDuration(HANDLE_ID hanldeId, gint64 *duration);
+int MMPlayerDoSeek(HANDLE_ID hanldeId, gint64 seekPos);
 
 #endif

@@ -24,6 +24,7 @@ pkg_check_modules(glib REQUIRED IMPORTED_TARGET glib-2.0)
 
 # qt create中编译，shell下编译需注释
 find_package(Qt5 REQUIRED COMPONENTS Widgets )
+qt5_add_resources(qrc_FILES res.qrc)
 
 include_directories(${PROJECT_SOURCE_DIR}/common/)
 include_directories(${PROJECT_SOURCE_DIR}/libs/)
@@ -44,6 +45,7 @@ add_executable(gst_player
   common/common.h
   common/common.cpp
   libs/mediaPlayer.h
+  ${qrc_FILES}
 )
 
 target_link_libraries(gst_player PRIVATE Qt5::Widgets PkgConfig::gstreamer PkgConfig::gstreamer-video PkgConfig::gobject PkgConfig::glib mmplayer)

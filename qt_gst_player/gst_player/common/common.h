@@ -57,7 +57,7 @@ ST_PLAYER_CMD *cmdQueuePop(ST_PLAYER_CMD_QUEUE *cmdQueue);
 bool cmdQueueDeInit(ST_PLAYER_CMD_QUEUE *cmdQueue);
 bool createCmdAndPush(ST_USER_HANDLE *userHandle, MM_PLAYER_CMD_TYPE type, void *data);
 
-static LOG_LEVEL user_log_level;
+static LOG_LEVEL user_log_level = LOG_LEVEL_TRACE;
 #define LIB_NAME "userplayer"
 
 #define LOG_ENTER()	\
