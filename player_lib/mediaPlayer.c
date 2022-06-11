@@ -197,7 +197,7 @@ int MMPlayerDoSeek(HANDLE_ID hanldeId, gint64 seekPos)
     }
 
     ret = gst_element_seek_simple (mediaHandle->pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH ,
-                  seekPos * GST_SECOND);
+                  seekPos);
 end:
     LOG_OUT();
     return ret;

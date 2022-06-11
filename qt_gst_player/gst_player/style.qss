@@ -15,7 +15,6 @@ QWidget#hWidget0 {
 QWidget#videoLayer {
     background:#fff;
     border-image:url(:/images/bg.png);
-    align-items:center;
 }
 
 QWidget#hWidget1 {
